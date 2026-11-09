@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Копилка-тренер</title>
+<style>
+:root{--bg:#f4f7fa;--card:#ffffff;--text:#1d2b3a;--muted:#5b6770;--brand:#2a9d8f;--navy:#1f3a5f;--amb:#f4a261;--ok:#2a9d8f;--bad:#d1495b;--line:#d8e0e8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1b27;--card:#1a2a3a;--text:#e8eef4;--muted:#9fb0bf;--line:#2c4056;--navy:#7fb2e5;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1b27;--card:#1a2a3a;--text:#e8eef4;--muted:#9fb0bf;--line:#2c4056;--navy:#7fb2e5;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.app{max-width:520px;margin:0 auto;padding:14px}
+h1{font-size:22px;margin:4px 0;color:var(--navy)}
+h2{font-size:18px;margin:0 0 8px;color:var(--navy)}
+.small{font-size:13px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bar{height:14px;background:var(--line);border-radius:10px;overflow:hidden;margin:8px 0}
+.fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--amb));transition:width .5s}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:11px 14px;width:100%;text-align:left;margin-top:8px}
+button.p{background:var(--brand);color:#fff;border-color:var(--brand);text-align:center;font-weight:600}
+button.q{background:var(--amb);color:#3a2300;border-color:var(--amb);text-align:center;font-weight:700}
+button.c{text-align:center}
+button.link{background:none;border:none;color:var(--muted);text-align:center;font-size:13px;width:auto}
+button:disabled{opacity:.6;cursor:default}
+button.right{border-color:var(--ok);background:rgba(42,157,143,.18)}
+button.wrong{border-color:var(--bad);background:rgba(209,73,91,.15)}
+.two{display:flex;gap:8px}.two button{margin-top:8px}
+input{font:inherit;width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);margin:6px 0 10px}
+label{font-size:14px;color:var(--muted)}
+.badge{display:inline-block;background:var(--amb);color:#3a2300;border-radius:20px;padding:3px 10px;font-size:13px;font-weight:600}
+.big{font-size:30px;font-weight:800;color:var(--navy);text-align:center}
+.expl{margin-top:12px;padding:12px;border-radius:10px;background:rgba(244,162,97,.2);font-size:15px;line-height:1.4}
+.op{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.op:last-child{border:none}
+.plus{color:var(--ok);font-weight:700;white-space:nowrap}.minus{color:var(--bad);font-weight:700;white-space:nowrap}
+.bd{opacity:.4;filter:grayscale(1)}.bd.on{opacity:1;filter:none}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:24px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:90%}
+.toast.show{opacity:1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .toast{color:#0f1b27}}
+svg.pig{width:100%;max-width:340px;display:block;margin:0 auto}
+:root[data-pal="mint"]{--bg:#effaf5;--card:#ffffff;--text:#17332b;--muted:#4f6b62;--brand:#249e72;--navy:#1d6b53;--amb:#f2c14e;--ok:#249e72;--line:#cfe8dc}
+@media (prefers-color-scheme:dark){:root[data-pal="mint"]:not([data-theme="light"]){--bg:#0e1f1a;--card:#17302a;--text:#e6f4ee;--muted:#9bbdb0;--brand:#2fb585;--navy:#7fe0bb;--line:#27463d}}
+.sw{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;vertical-align:-2px;border:1px solid #00000030}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+var KEY='kopilka-trener-v2';
+var LEVELS=[[0,'Новичок'],[15,'Накопитель'],[40,'Планировщик'],[80,'Финансовый стратег']];
+var BODY=['#f4a6b8','#9ad1e6','#9ad1e6','#f2c14e'];
+var TOPICS=[
+{id:'money',icon:'🪙',name:'Откуда берутся деньги',qs:[
+ {q:'Что из этого считается доходом?',o:['Деньги, которые подарили на день рождения','Покупка наушников','Оплата подписки'],a:0,e:'Доход — это деньги, которые поступают тебе: карманные, подарки, заработок. Покупки и подписки — это расходы.'},
+ {q:'Зачем записывать, откуда пришли деньги?',o:['Чтобы видеть, на что хватает, и планировать','Чтобы родители проверяли','Незачем, и так всё помню'],a:0,e:'Записи показывают реальную картину: сколько приходит, сколько уходит и сколько можно отложить.'},
+ {q:'Тебе дали 1 000 ₽. Какой первый шаг самый разумный?',o:['Сразу всё потратить','Решить, сколько потратить, а сколько отложить на цель','Одолжить всё другу'],a:1,e:'Сначала план: часть на текущие желания, часть на цель. Так деньги работают на тебя.'},
+ {q:'Что такое бюджет?',o:['План доходов и расходов','Название банка','Вид налога'],a:0,e:'Бюджет — это план: сколько денег придёт и на что ты их направишь.'},
+ {q:'Цель стоит 4 000 ₽, откладываешь по 500 ₽ в неделю. За сколько недель накопишь?',o:['6','8','10'],a:1,e:'4 000 ÷ 500 = 8 недель. Такой расчёт помогает понять, реальна ли цель.'}]},
+{id:'scam',icon:'🕵️',name:'Мошенники',qs:[
+ {q:'«Сотрудник банка» просит назвать код из СМС. Что делаешь?',o:['Называю, чтобы защитить счёт','Не называю никому и кладу трубку','Называю, если просит настойчиво'],a:1,e:'Код из СМС нельзя называть никому, даже настоящему сотруднику банка. Звони в банк сам по номеру с карты.'},
+ {q:'Пришло сообщение: «Это Аня, проголосуй за меня» и ссылка. Что делаешь?',o:['Перехожу и голосую','Пишу Ане другим способом и уточняю','Пересылаю друзьям'],a:1,e:'Аккаунт друга могли взломать. Просьбу со ссылкой проверяй по другому каналу связи.'},
+ {q:'«Зарабатывай 3 000 ₽ в день за лайки, нужны данные карты». Твои действия?',o:['Отправлю данные карты','Проигнорирую и расскажу взрослым','Попробую на маленькую сумму'],a:1,e:'Лёгкий заработок за лайки — частая схема обмана. Данные карты нельзя давать никому.'},
+ {q:'Что чаще всего выдаёт мошенника?',o:['Срочность и просьба никому не говорить','Вежливый тон','Длинное сообщение'],a:0,e:'Мошенники давят срочностью и секретностью, чтобы ты не успел подумать и посоветоваться.'},
+ {q:'Ты подозреваешь обман. Как поступить?',o:['Удалить и забыть','Рассказать взрослому и заблокировать отправителя','Ответить и задать вопросы'],a:1,e:'Расскажи родителям или учителю и заблокируй отправителя. Так обман остановят и других предупредят.'}]},
+{id:'subs',icon:'📺',name:'Подписки и донаты',qs:[
+ {q:'Пробный период просит привязать карту. На что смотреть?',o:['Когда начнётся платная подписка и как её отключить','Ни на что, он же бесплатный','На цвет кнопки'],a:0,e:'После пробного периода деньги часто списываются автоматически. Условия читай до оплаты.'},
+ {q:'Подписка стоит 299 ₽ в месяц. Сколько это в год?',o:['2 988 ₽','3 588 ₽','3 000 ₽'],a:1,e:'299 × 12 = 3 588 ₽. Небольшие ежемесячные платежи за год превращаются в заметную сумму.'},
+ {q:'В игре акция «Донат ×2, только сегодня!». Что делаешь?',o:['Донатлю сразу','Жду сутки и решаю спокойно','Прошу денег у друга'],a:1,e:'«Только сегодня» — приём давления. Если через сутки всё ещё хочется, решение будет осознанным.'},
+ {q:'Что такое автоплатёж?',o:['Деньги списываются сами и регулярно','Подарок от магазина','Налог'],a:0,e:'Автоплатёж списывает деньги без твоего участия. Поэтому важно знать, на что он оформлен.'},
+ {q:'Как не терять деньги на ненужных подписках?',o:['Раз в месяц проверять подписки и отключать лишнее','Никогда не проверять','Привязать больше карт'],a:0,e:'Регулярный просмотр подписок раз в месяц — самый простой способ не платить зря.'}]},
+{id:'sale',icon:'🏷️',name:'Скидки и акции',qs:[
+ {q:'Было 10 000 ₽, скидка 30%. Какая цена?',o:['7 000 ₽','3 000 ₽','9 700 ₽'],a:0,e:'30% от 10 000 — это 3 000 ₽. Вычитаем: 10 000 − 3 000 = 7 000 ₽.'},
+ {q:'Цена выросла на 25%, потом упала на 25%. Вернулась ли она к исходной?',o:['Да, ровно к той же','Нет, стала чуть ниже исходной','Нет, стала выше'],a:1,e:'100 → 125 → 93,75. Проценты считаются от разных сумм, поэтому «вернуться» цена не может.'},
+ {q:'Сайт, который ты не знаешь, предлагает «−70% только сегодня». Что делаешь?',o:['Покупаю быстро','Проверяю продавца, отзывы и цену в других магазинах','Плачу сразу, чтобы успеть'],a:1,e:'Цены сильно ниже рынка — частый признак обмана. Проверь отзывы, возврат и сравни цены.'},
+ {q:'Зачем сравнивать цены в двух-трёх магазинах?',o:['Чтобы не переплатить','Нет смысла','Чтобы расстроить продавца'],a:0,e:'Одна и та же вещь может стоить заметно по-разному. Сравнение экономит деньги.'},
+ {q:'Захотелось купить что-то сразу, под настроение. Что лучше сделать?',o:['Подождать сутки','Взять в долг','Купить две штуки на всякий случай'],a:0,e:'Правило «24 часа»: если желание не прошло, покупка осознанная. Часто импульс уходит сам.'}]}
+];
+var BADGES=[
+ ['🥇','Первая монета','Первое пополнение копилки'],
+ ['🕵️','Антимошенник','Тема «Мошенники» без ошибок'],
+ ['⏳','Терпеливый','Накоплена половина цели'],
+ ['🎯','Цель достигнута','Накоплена вся сумма'],
+ ['📝','Дотошный','5 подписанных пополнений']
+];
+var S,view='main',topic=null,qi=0,wrongs=[],answered=false,lastStars=0;
+
+function fresh(){return {goal:null,ops:[],res:{},bonus:{},acc:''};}
+function load(){try{var r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+S=load()||fresh();
+var PKEY='kopilka-pal';
+function getPal(){try{return localStorage.getItem(PKEY)||'mint';}catch(e){return 'mint';}}
+function setPal(p){try{localStorage.setItem(PKEY,p);}catch(e){}applyPal(p);}
+function applyPal(p){if(p==='mint')document.documentElement.setAttribute('data-pal','mint');else document.documentElement.removeAttribute('data-pal');}
+applyPal(getPal());
+
+function balance(){return S.ops.reduce(function(a,o){return a+(o.type==='in'?o.amt:-o.amt);},0);}
+function stars(){var t=0,k;for(k in S.res)t+=S.res[k];for(k in S.bonus)t+=5;return t;}
+function lvIdx(){var s=stars(),r=0;for(var i=0;i<LEVELS.length;i++)if(s>=LEVELS[i][0])r=i;return r;}
+function money(n){return n.toLocaleString('ru-RU')+' ₽';}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e;}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.className='toast show';setTimeout(function(){t.className='toast';},2000);}
+function go(v){view=v;render();window.scrollTo(0,0);}
+function btn(app,txt,cls,fn){var b=el('button',cls,txt);b.onclick=fn;app.appendChild(b);return b;}
+function back(app,to){var b=btn(app,'← Назад','link',function(){go(to||'main');});b.style.marginTop='0';}
+function dateStr(t){return new Date(t).toLocaleDateString('ru-RU');}
+function badgeOn(i){
+ var b=balance(),g=S.goal?S.goal.price:1,ins=S.ops.filter(function(o){return o.type==='in';}).length;
+ if(i===0)return ins>=1;
+ if(i===1){var t=TOPICS[1];return t.qs.every(function(q,j){return S.res[t.id+j]===3;});}
+ if(i===2)return b>=g/2;
+ if(i===3)return b>=g;
+ return ins>=5;
+}
+
+function pigSvg(){
+ var g=S.goal,pct=g?Math.max(0,Math.min(1,balance()/g.price)):0,L=lvIdx(),h=pct*140,body=BODY[L];
+ var s='<svg class="pig" viewBox="0 0 320 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Копилка заполнена на '+Math.round(pct*100)+' процентов">';
+ s+='<defs><clipPath id="cb"><ellipse cx="150" cy="115" rx="105" ry="70"/></clipPath></defs>';
+ s+='<rect x="92" y="170" width="28" height="34" rx="8" fill="'+body+'" stroke="#00000030"/><rect x="182" y="170" width="28" height="34" rx="8" fill="'+body+'" stroke="#00000030"/>';
+ s+='<polygon points="95,62 108,28 132,52" fill="'+body+'" stroke="#00000030"/><polygon points="205,62 192,28 170,52" fill="'+body+'" stroke="#00000030"/>';
+ s+='<path d="M48 105 q-26 -6 -22 -30 q14 10 24 8" fill="none" stroke="'+body+'" stroke-width="7" stroke-linecap="round"/>';
+ s+='<ellipse cx="150" cy="115" rx="105" ry="70" fill="'+body+'" stroke="#00000030" stroke-width="2"/>';
+ s+='<g clip-path="url(#cb)"><rect x="40" y="'+(185-h)+'" width="220" height="'+h+'" fill="#2a9d8f" opacity=".55"/></g>';
+ s+='<ellipse cx="258" cy="122" rx="24" ry="19" fill="#00000022"/><circle cx="251" cy="122" r="4" fill="#00000066"/><circle cx="265" cy="122" r="4" fill="#00000066"/>';
+ s+='<circle cx="222" cy="98" r="6" fill="#222"/>';
+ s+='<rect x="125" y="46" width="52" height="7" rx="3" fill="#222" opacity=".6"/>';
+ if(L>=1)s+='<circle cx="105" cy="122" r="17" fill="#f4a261" stroke="#b86d2a" stroke-width="2"/><text x="105" y="128" text-anchor="middle" font-size="17" font-weight="700" fill="#5a3300" font-family="Arial">₽</text>';
+ if(L>=2){
+  if(S.acc==='hat')s+='<rect x="186" y="12" width="40" height="30" rx="4" fill="#1f3a5f"/><rect x="174" y="40" width="64" height="8" rx="4" fill="#1f3a5f"/>';
+  if(S.acc==='glasses')s+='<circle cx="222" cy="98" r="12" fill="none" stroke="#1f3a5f" stroke-width="3"/><line x1="234" y1="98" x2="246" y2="104" stroke="#1f3a5f" stroke-width="3"/>';
+  if(S.acc==='bow')s+='<polygon points="140,36 118,24 118,50" fill="#d1495b"/><polygon points="140,36 162,24 162,50" fill="#d1495b"/><circle cx="140" cy="36" r="6" fill="#a8283a"/>';
+ }
+ if(L>=3)s+='<text x="150" y="30" text-anchor="middle" font-size="22">👑</text>';
+ return s+'</svg>';
+}
+
+function themeView(app){
+ back(app);app.appendChild(el('h1',null,'🎨 Тема'));
+ var c=el('div','card'),cur=getPal();
+ [['mint','Мятная','#249e72'],['classic','Классика','#2a9d8f']].forEach(function(x){
+  var b=el('button',null,'');var sw=el('span','sw');sw.style.background=x[2];b.appendChild(sw);
+  b.appendChild(document.createTextNode((cur===x[0]?'✓ ':'')+x[1]));
+  b.onclick=function(){setPal(x[0]);render();};c.appendChild(b);
+ });
+ c.appendChild(el('div','small','Светлая или тёмная версия включается сама, в зависимости от настроек устройства.')).style.marginTop='12px';
+ app.appendChild(c);
+}
+function render(){
+ var app=document.getElementById('app');app.innerHTML='';
+ if(!S.goal)return setup(app);
+ if(view==='in'||view==='out')return form(app);
+ if(view==='hist')return hist(app);
+ if(view==='theme')return themeView(app);
+ if(view==='quests')return quests(app);
+ if(view==='quest')return question(app);
+ if(view==='rewards')return rewards(app);
+ main(app);
+}
+
+function setup(app){
+ app.appendChild(el('h1',null,'🐷 Копилка-тренер'));
+ app.appendChild(el('p','small','Копи на мечту, записывай, откуда пришли деньги, и проходи квесты по финансовой грамотности. Реальные деньги и карты не нужны: ты сам ведёшь учёт.'));
+ var c=el('div','card');c.appendChild(el('h2',null,'На что копим?'));
+ var l1=el('label',null,'Название цели'),i1=el('input');i1.placeholder='Например, наушники';i1.maxLength=40;
+ var l2=el('label',null,'Сколько нужно накопить, ₽'),i2=el('input');i2.type='number';i2.min='100';i2.placeholder='4000';
+ c.appendChild(l1);c.appendChild(i1);c.appendChild(l2);c.appendChild(i2);
+ btn(c,'Создать копилку','p',function(){
+  var n=i1.value.trim(),p=parseInt(i2.value,10);
+  if(!n||!p||p<100){toast('Введи цель и сумму от 100 ₽');return;}
+  S.goal={name:n,price:p};save();go('main');
+ });
+ app.appendChild(c);
+}
+
+function main(app){
+ var g=S.goal,b=balance(),pct=Math.max(0,Math.min(100,Math.round(b/g.price*100))),L=lvIdx();
+ var top=el('div','row');top.appendChild(el('h1',null,'🐷 Копилка'));top.appendChild(el('span','badge','⭐ '+stars()+' · '+LEVELS[L][1]));app.appendChild(top);
+ var c=el('div','card');
+ var d=el('div');d.innerHTML=pigSvg();c.appendChild(d);
+ c.appendChild(el('div','big',money(b)));
+ c.appendChild(el('div','small','Цель: '+g.name+' — '+money(g.price))).style.textAlign='center';
+ var bar=el('div','bar'),f=el('div','fill');f.style.width=pct+'%';bar.appendChild(f);c.appendChild(bar);
+ var t=pct>=100?'🎉 Цель достигнута!':'Накоплено '+pct+'%, осталось '+money(Math.max(0,g.price-b));
+ c.appendChild(el('div','small',t)).style.textAlign='center';
+ app.appendChild(c);
+ var r=el('div','two');
+ var a=el('button','p c','＋ Положить');a.onclick=function(){go('in');};
+ var o=el('button','c','－ Потратил');o.onclick=function(){go('out');};
+ r.appendChild(a);r.appendChild(o);app.appendChild(r);
+ btn(app,'🧭 Узнать о новом','q',function(){go('quests');});
+ var r2=el('div','two');
+ var h=el('button','c','📒 История');h.onclick=function(){go('hist');};
+ var w=el('button','c','🏆 Награды');w.onclick=function(){go('rewards');};
+ r2.appendChild(h);r2.appendChild(w);app.appendChild(r2);
+ btn(app,'🎨 Тема','c',function(){go('theme');});
+ var rs=btn(app,'Начать заново','link',function(){if(confirm('Удалить копилку и весь прогресс?')){S=fresh();save();go('main');}});
+ rs.style.marginTop='18px';rs.style.display='block';rs.style.marginLeft='auto';rs.style.marginRight='auto';
+}
+
+function form(app){
+ var isIn=view==='in';back(app);
+ var c=el('div','card');c.appendChild(el('h2',null,isIn?'Положить в копилку':'Потратил из копилки'));
+ c.appendChild(el('div','small',isIn?'Подпиши, откуда появились деньги, чтобы потом понимать, как копится твой капитал.':'Подпиши, на что ты потратил деньги. Больше, чем накоплено, потратить нельзя.'));
+ var l1=el('label',null,'Сумма, ₽'),i1=el('input');i1.type='number';i1.min='1';i1.placeholder='100';
+ var l2=el('label',null,isIn?'Откуда деньги?':'На что потратил?'),i2=el('input');i2.maxLength=60;i2.placeholder=isIn?'Например: мама дала на карманные':'Например: купил тетради';
+ c.appendChild(l1);c.appendChild(i1);c.appendChild(l2);c.appendChild(i2);
+ btn(c,'Сохранить','p',function(){
+  var a=parseInt(i1.value,10),n=i2.value.trim();
+  if(!a||a<1){toast('Введи сумму');return;}
+  if(!n){toast('Подпиши, '+(isIn?'откуда деньги':'на что потратил'));return;}
+  if(!isIn&&a>balance()){toast('В копилке только '+money(balance()));return;}
+  var before=lvIdx();
+  S.ops.push({id:Date.now(),type:isIn?'in':'out',amt:a,note:n,t:Date.now()});
+  save();toast(isIn?'Положил '+money(a)+' в копилку':'Записал трату '+money(a));go('main');
+ });
+ app.appendChild(c);
+}
+
+function hist(app){
+ back(app);var c=el('div','card');c.appendChild(el('h2',null,'История копилки'));
+ if(!S.ops.length)c.appendChild(el('div','small','Пока пусто. Положи первые деньги в копилку.'));
+ S.ops.slice().reverse().forEach(function(o){
+  var r=el('div','op'),l=el('div');l.appendChild(el('div',null,o.note));l.appendChild(el('div','small',dateStr(o.t)));
+  r.appendChild(l);r.appendChild(el('div',o.type==='in'?'plus':'minus',(o.type==='in'?'+ ':'− ')+money(o.amt)));c.appendChild(r);
+ });
+ c.appendChild(el('div','small','Записи нельзя менять задним числом: так история остаётся честной.')).style.marginTop='10px';
+ app.appendChild(c);
+}
+
+function done(t){var n=0;t.qs.forEach(function(q,i){if(S.res[t.id+i]!==undefined)n++;});return n;}
+
+function quests(app){
+ back(app);app.appendChild(el('h1',null,'🧭 Узнать о новом'));
+ app.appendChild(el('p','small','Выбери тему. Верный ответ с первой попытки даёт 3 звезды, со второй — 1. За прохождение всей темы +5 звёзд.'));
+ TOPICS.forEach(function(t){
+  var n=done(t),all=n===t.qs.length;
+  var b=el('button',null,'');b.innerHTML='';
+  var r=el('div','row');r.appendChild(el('span',null,t.icon+'  '+t.name));r.appendChild(el('span','small',all?'✓ пройдено':n+' из '+t.qs.length));
+  b.appendChild(r);
+  b.onclick=function(){
+   if(all){toast('Тема уже пройдена. Заходи за новыми!');return;}
+   topic=t;qi=0;for(var i=0;i<t.qs.length;i++){if(S.res[t.id+i]===undefined){qi=i;break;}}
+   wrongs=[];answered=false;go('quest');
+  };
+  app.appendChild(b);
+ });
+}
+
+function question(app){
+ var t=topic,q=t.qs[qi];
+ back(app,'quests');
+ var c=el('div','card');
+ c.appendChild(el('div','small',t.icon+' '+t.name+' · вопрос '+(qi+1)+' из '+t.qs.length));
+ var p=el('p',null,q.q);p.style.lineHeight='1.45';p.style.fontWeight='600';c.appendChild(p);
+ q.o.forEach(function(txt,i){
+  var b=el('button',null,txt);
+  if(answered){b.disabled=true;if(i===q.a)b.className='right';else if(wrongs.indexOf(i)>=0)b.className='wrong';}
+  else if(wrongs.indexOf(i)>=0){b.disabled=true;b.className='wrong';}
+  else b.onclick=function(){pick(i);};
+  c.appendChild(b);
+ });
+ if(!answered&&wrongs.length)c.appendChild(el('div','expl','Не совсем. Подумай ещё раз, у тебя есть вторая попытка (+1 звезда).'));
+ if(answered){
+  var head=lastStars===3?'Верно с первой попытки! +3 звезды. ':lastStars===1?'Верно со второй попытки. +1 звезда. ':'Правильный ответ выделен. ';
+  c.appendChild(el('div','expl',head+q.e));
+  var last=qi===t.qs.length-1||t.qs.every(function(x,i){return i===qi||S.res[t.id+i]!==undefined;});
+  btn(c,last?'Завершить тему':'Дальше','p',function(){next();});
+ }
+ app.appendChild(c);
+}
+
+function pick(i){
+ var t=topic,q=t.qs[qi],key=t.id+qi;
+ if(i===q.a){
+  lastStars=wrongs.length===0?3:1;S.res[key]=lastStars;answered=true;
+ }else{
+  wrongs.push(i);
+  if(wrongs.length>=2){
+   lastStars=0;S.res[key]=0;answered=true;
+  }
+ }
+ save();render();
+}
+
+function next(){
+ var t=topic,before=lvIdx();
+ var rest=-1;for(var i=0;i<t.qs.length;i++){if(S.res[t.id+i]===undefined){rest=i;break;}}
+ if(rest>=0){qi=rest;wrongs=[];answered=false;render();return;}
+ if(!S.bonus[t.id]){S.bonus[t.id]=true;toast('Тема «'+t.name+'» пройдена! +5 звёзд');}
+ save();
+ if(lvIdx()>before)setTimeout(function(){toast('Новый уровень: '+LEVELS[lvIdx()][1]+'!');},2200);
+ go('quests');
+}
+
+function rewards(app){
+ back(app);app.appendChild(el('h1',null,'🏆 Награды'));
+ var L=lvIdx(),s=stars();
+ var c=el('div','card');c.appendChild(el('h2',null,'Уровень: '+LEVELS[L][1]));
+ var nx=LEVELS[L+1];
+ c.appendChild(el('div','small',nx?'⭐ '+s+' — до уровня «'+nx[1]+'» осталось '+(nx[0]-s)+' звёзд':'⭐ '+s+' — максимальный уровень!'));
+ var bar=el('div','bar'),f=el('div','fill');f.style.width=(nx?Math.min(100,(s-LEVELS[L][0])/(nx[0]-LEVELS[L][0])*100):100)+'%';bar.appendChild(f);c.appendChild(bar);
+ var lst=['Базовая копилка','Монета-значок и новый цвет копилки','Аксессуар на выбор','Золотая копилка и корона'];
+ LEVELS.forEach(function(l,i){c.appendChild(el('div','small',(i<=L?'✓ ':'🔒 ')+l[0]+' ⭐ — '+lst[i]));});
+ app.appendChild(c);
+ if(L>=2){
+  var a=el('div','card');a.appendChild(el('h2',null,'Аксессуар'));
+  var r=el('div','two');
+  [['','Без'],['hat','🎩 Шляпа'],['glasses','🕶️ Очки'],['bow','🎀 Бант']].forEach(function(x){
+   var b=el('button','c',(S.acc===x[0]?'✓ ':'')+x[1]);b.onclick=function(){S.acc=x[0];save();render();};r.appendChild(b);
+  });
+  a.appendChild(r);app.appendChild(a);
+ }
+ var bc=el('div','card');bc.appendChild(el('h2',null,'Значки'));
+ BADGES.forEach(function(b,i){
+  var on=badgeOn(i),r=el('div','op'+(on?' ':' '));r.className='op bd'+(on?' on':'');
+  r.appendChild(el('div',null,b[0]+'  '+b[1]));r.appendChild(el('div','small',b[2]));bc.appendChild(r);
+ });
+ app.appendChild(bc);
+}
+render();
+</script>
+</body>
+</html>
